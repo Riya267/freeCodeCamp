@@ -243,3 +243,7 @@ export const userSelector = state => {
 };
 
 export const renderStartTimeSelector = state => state[MainApp].renderStartTime;
+export const soundSelector = state => {
+  console.log('called soundSelector', state['settings'].soundInfo);
+  return state['settings'].soundInfo;
+};

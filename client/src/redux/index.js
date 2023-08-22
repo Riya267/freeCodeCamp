@@ -434,8 +434,6 @@ export const reducer = handleActions(
       payload ? spreadThePayloadOnUser(state, payload) : state,
     [settingsTypes.updateMySocialsComplete]: (state, { payload }) =>
       payload ? spreadThePayloadOnUser(state, payload) : state,
-    [settingsTypes.updateMySoundComplete]: (state, { payload }) =>
-      payload ? spreadThePayloadOnUser(state, payload) : state,
     [settingsTypes.updateMyThemeComplete]: (state, { payload }) =>
       payload ? spreadThePayloadOnUser(state, payload) : state,
     [settingsTypes.updateMyKeyboardShortcutsComplete]: (state, { payload }) =>

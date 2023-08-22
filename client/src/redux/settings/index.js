@@ -17,6 +17,10 @@ const initialState = {
   usernameValidation: {
     isValidUsername: false,
     fetchState: { ...defaultFetchState }
+  },
+  soundInfo: {
+    sound: false,
+    soundVolume: 50
   }
 };
 
@@ -47,7 +51,14 @@ export const reducer = handleActions(
         isValidUsername: !payload,
         fetchState: { ...defaultFetchState, pending: false, complete: true }
       }
-    })
+    }),
+    [types.updateMySoundComplete]: (state, { payload }) => {
+      console.log('called updateMySoundComplete');
+      return {
+        ...state,
+        soundInfo: payload
+      };
+    }
   },
   initialState
 );

@@ -32,6 +32,7 @@ type AboutProps = ThemeProps &
     | 'yearsTopContributor'
   > & {
     sound: boolean;
+    soundVolume: number;
     keyboardShortcuts: boolean;
     submitNewAbout: (formValues: FormValues) => void;
     t: TFunction;
@@ -198,6 +199,7 @@ class AboutSettings extends Component<AboutProps, AboutState> {
     const {
       currentTheme,
       sound,
+      soundVolume,
       keyboardShortcuts,
       username,
       t,
@@ -278,7 +280,12 @@ class AboutSettings extends Component<AboutProps, AboutState> {
             currentTheme={currentTheme}
             toggleNightMode={toggleNightMode}
           />
-          <SoundSettings sound={sound} toggleSoundMode={toggleSoundMode} />
+          <h1>Hello</h1>
+          <SoundSettings
+            sound={sound}
+            soundVolume={soundVolume}
+            toggleSoundMode={toggleSoundMode}
+          />
           <KeyboardShortcutsSettings
             keyboardShortcuts={keyboardShortcuts}
             toggleKeyboardShortcuts={toggleKeyboardShortcuts}

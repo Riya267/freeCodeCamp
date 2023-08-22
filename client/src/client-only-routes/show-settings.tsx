@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import React, { useRef } from 'react';
 import Helmet from 'react-helmet';
 import { useTranslation } from 'react-i18next';
@@ -23,7 +24,8 @@ import {
   signInLoadingSelector,
   userSelector,
   isSignedInSelector,
-  userTokenSelector
+  userTokenSelector,
+  soundSelector
 } from '../redux/selectors';
 import { User } from '../redux/prop-types';
 import {
@@ -57,6 +59,10 @@ type ShowSettingsProps = Pick<ThemeProps, 'toggleNightMode'> & {
   verifyCert: () => void;
   path?: string;
   userToken: string | null;
+  soundInfo: {
+    sound: boolean;
+    soundVolume: number;
+  };
 };
 
 const mapStateToProps = createSelector(
@@ -64,11 +70,19 @@ const mapStateToProps = createSelector(
   userSelector,
   isSignedInSelector,
   userTokenSelector,
-  (showLoading: boolean, user: User, isSignedIn, userToken: string | null) => ({
+  soundSelector,
+  (
+    showLoading: boolean,
+    user: User,
+    isSignedIn,
+    userToken: string | null,
+    soundInfo
+  ) => ({
     showLoading,
     user,
     isSignedIn,
-    userToken
+    userToken,
+    soundInfo
   })
 );
 
@@ -125,7 +139,6 @@ export function ShowSettings(props: ShowSettingsProps): JSX.Element {
       about,
       picture,
       theme,
-      sound,
       keyboardShortcuts,
       location,
       name,
@@ -142,10 +155,12 @@ export function ShowSettings(props: ShowSettingsProps): JSX.Element {
     updatePortfolio,
     updateIsHonest,
     verifyCert,
-    userToken
+    userToken,
+    soundInfo
   } = props;
-  const isSignedInRef = useRef(isSignedIn);
 
+  console.log('props', props);
+  const isSignedInRef = useRef(isSignedIn);
   if (showLoading) {
     return <Loader fullScreen={true} />;
   }
@@ -174,7 +189,8 @@ export function ShowSettings(props: ShowSettingsProps): JSX.Element {
             location={location}
             name={name}
             picture={picture}
-            sound={sound}
+            sound={soundInfo.sound}
+            soundVolume={soundInfo.soundVolume}
             keyboardShortcuts={keyboardShortcuts}
             submitNewAbout={submitNewAbout}
             toggleNightMode={toggleNightMode}

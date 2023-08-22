@@ -9,17 +9,17 @@ import ToggleButtonSetting from './toggle-button-setting';
 
 type SoundProps = {
   sound: boolean;
+  soundVolume: number;
   toggleSoundMode: (sound: boolean) => void;
 };
 
 export default function SoundSettings({
   sound,
+  soundVolume,
   toggleSoundMode
 }: SoundProps): JSX.Element {
   const { t } = useTranslation();
-  const [volumeDisplay, setVolumeDisplay] = useState(
-    (store.get('soundVolume') as number) ?? 50
-  );
+  const [volumeDisplay, setVolumeDisplay] = useState(soundVolume ?? 50);
   const [mayPlay, setMayPlay] = useState(true);
 
   function handleVolumeChange(event: ChangeEvent<HTMLInputElement>) {
@@ -27,7 +27,7 @@ export default function SoundSettings({
 
     store.set('soundVolume', inputValue);
 
-    setVolumeDisplay((store.get('soundVolume') as number) ?? 50);
+    setVolumeDisplay(soundVolume ?? 50);
 
     if (mayPlay) {
       void playTone('tests-completed');
