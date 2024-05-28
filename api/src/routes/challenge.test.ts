@@ -4,6 +4,7 @@ const mockVerifyTrophyWithMicrosoft = jest.fn();
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { omit } from 'lodash';
+import { Static } from '@fastify/type-provider-typebox';
 
 import { challengeTypes } from '../../../shared/config/challenge-types';
 import {
@@ -12,10 +13,27 @@ import {
   setupServer,
   superRequest,
   seedExam,
-  defaultUserEmail
+  defaultUserEmail,
+  createSuperRequest,
+  defaultUsername
 } from '../../jest.utils';
-import { completedTrophyChallenges } from '../../__mocks__/exam';
-import { GeneratedAnswer } from '../utils/exam-types';
+import {
+  completedExamChallengeOneCorrect,
+  completedExamChallengeTwoCorrect,
+  completedExamChallengeAllCorrect,
+  completedTrophyChallenges,
+  examChallengeId,
+  mockResultsZeroCorrect,
+  mockResultsTwoCorrect,
+  mockResultsAllCorrect,
+  examWithZeroCorrect,
+  examWithOneCorrect,
+  examWithTwoCorrect,
+  examWithAllCorrect,
+  type ExamSubmission
+} from '../../__mocks__/exam';
+import { Answer } from '../utils/exam-types';
+import type { getSessionUser } from '../schemas/user/get-session-user';
 
 jest.mock('./helpers/challenge-helpers', () => {
   const originalModule = jest.requireActual<
@@ -129,18 +147,20 @@ describe('challengeRoutes', () => {
   setupServer();
   describe('Authenticated user', () => {
     let setCookies: string[];
+    let superPost: ReturnType<typeof createSuperRequest>;
+    let superGet: ReturnType<typeof createSuperRequest>;
 
     // Authenticate user
     beforeAll(async () => {
       setCookies = await devLogin();
+      superPost = createSuperRequest({ method: 'POST', setCookies });
+      superGet = createSuperRequest({ method: 'GET', setCookies });
+      await seedExam();
     });
 
     describe('POST /coderoad-challenge-completed', () => {
       test('should return 400 if no tutorialId', async () => {
-        const response = await superRequest('/coderoad-challenge-completed', {
-          method: 'POST',
-          setCookies
-        });
+        const response = await superPost('/coderoad-challenge-completed');
         expect(response.body).toEqual({
           msg: `'tutorialId' not found in request body`,
           type: 'error'
@@ -149,10 +169,7 @@ describe('challengeRoutes', () => {
       });
 
       test('should return 400 if no user token', async () => {
-        const response = await superRequest('/coderoad-challenge-completed', {
-          method: 'POST',
-          setCookies
-        }).send({
+        const response = await superPost('/coderoad-challenge-completed').send({
           tutorialId: 'freeCodeCamp/learn-bash-by-building-a-boilerplate:v1.0.0'
         });
         expect(response.body).toEqual({
@@ -163,10 +180,7 @@ describe('challengeRoutes', () => {
       });
 
       test('should return 400 if invalid user token', async () => {
-        const response = await superRequest('/coderoad-challenge-completed', {
-          method: 'POST',
-          setCookies
-        })
+        const response = await superPost('/coderoad-challenge-completed')
           .set('coderoad-user-token', 'invalid')
           .send({
             tutorialId:
@@ -180,19 +194,13 @@ describe('challengeRoutes', () => {
       });
 
       test('should return 400 if invalid tutorialId', async () => {
-        const tokenResponse = await superRequest('/user/user-token', {
-          method: 'POST',
-          setCookies
-        });
+        const tokenResponse = await superPost('/user/user-token');
         expect(tokenResponse.body).toHaveProperty('userToken');
         expect(tokenResponse.status).toBe(200);
 
         const token = (tokenResponse.body as { userToken: string }).userToken;
 
-        const response = await superRequest('/coderoad-challenge-completed', {
-          method: 'POST',
-          setCookies
-        })
+        const response = await superPost('/coderoad-challenge-completed')
           .set('coderoad-user-token', token)
           .send({ tutorialId: 'invalid' });
 
@@ -204,19 +212,13 @@ describe('challengeRoutes', () => {
       });
 
       test('should return 400 if invalid tutorialId but is hosted on freeCodeCamp', async () => {
-        const tokenResponse = await superRequest('/user/user-token', {
-          method: 'POST',
-          setCookies
-        });
+        const tokenResponse = await superPost('/user/user-token');
         expect(tokenResponse.body).toHaveProperty('userToken');
         expect(tokenResponse.status).toBe(200);
 
         const token = (tokenResponse.body as { userToken: string }).userToken;
 
-        const response = await superRequest('/coderoad-challenge-completed', {
-          method: 'POST',
-          setCookies
-        })
+        const response = await superPost('/coderoad-challenge-completed')
           .set('coderoad-user-token', token)
           .send({ tutorialId: 'freeCodeCamp/invalid:V1.0.0' });
 
@@ -228,19 +230,13 @@ describe('challengeRoutes', () => {
       });
 
       test('Should complete challenge with code 200', async () => {
-        const tokenResponse = await superRequest('/user/user-token', {
-          method: 'POST',
-          setCookies
-        });
+        const tokenResponse = await superPost('/user/user-token');
         expect(tokenResponse.body).toHaveProperty('userToken');
         expect(tokenResponse.status).toBe(200);
 
         const token = (tokenResponse.body as { userToken: string }).userToken;
 
-        const response = await superRequest('/coderoad-challenge-completed', {
-          method: 'POST',
-          setCookies
-        })
+        const response = await superPost('/coderoad-challenge-completed')
           .set('coderoad-user-token', token)
           .send({
             tutorialId:
@@ -265,19 +261,13 @@ describe('challengeRoutes', () => {
       });
 
       test('Should complete project with code 200', async () => {
-        const tokenResponse = await superRequest('/user/user-token', {
-          method: 'POST',
-          setCookies
-        });
+        const tokenResponse = await superPost('/user/user-token');
         expect(tokenResponse.body).toHaveProperty('userToken');
         expect(tokenResponse.status).toBe(200);
 
         const token = (tokenResponse.body as { userToken: string }).userToken;
 
-        const response = await superRequest('/coderoad-challenge-completed', {
-          method: 'POST',
-          setCookies
-        })
+        const response = await superPost('/coderoad-challenge-completed')
           .set('coderoad-user-token', token)
           .send({
             tutorialId: 'freeCodeCamp/learn-celestial-bodies-database:v1.0.0'
@@ -310,10 +300,7 @@ describe('challengeRoutes', () => {
     describe('/project-completed', () => {
       describe('validation', () => {
         it('POST rejects requests without ids', async () => {
-          const response = await superRequest('/project-completed', {
-            method: 'POST',
-            setCookies
-          }).send({});
+          const response = await superPost('/project-completed').send({});
 
           expect(response.body).toStrictEqual(
             isValidChallengeCompletionErrorMsg
@@ -322,13 +309,12 @@ describe('challengeRoutes', () => {
         });
 
         it('POST rejects requests without valid ObjectIDs', async () => {
-          const response = await superRequest('/project-completed', {
-            method: 'POST',
-            setCookies
+          const response = await superPost(
+            '/project-completed'
             // This is a departure from api-server, which does not require a
             // solution to give this error. However, the validator will reject
             // based on the missing solution before it gets to the invalid id.
-          }).send({ id: 'not-a-valid-id', solution: '' });
+          ).send({ id: 'not-a-valid-id', solution: '' });
 
           expect(response.body).toStrictEqual(
             isValidChallengeCompletionErrorMsg
@@ -337,10 +323,7 @@ describe('challengeRoutes', () => {
         });
 
         it('POST rejects requests with invalid challengeTypes', async () => {
-          const response = await superRequest('/project-completed', {
-            method: 'POST',
-            setCookies
-          }).send({
+          const response = await superPost('/project-completed').send({
             id: id1,
             challengeType: 'not-a-valid-challenge-type',
             // TODO(Post-MVP): drop these comments, since the api-server will not
@@ -359,10 +342,7 @@ describe('challengeRoutes', () => {
         });
 
         it('POST rejects requests without solutions', async () => {
-          const response = await superRequest('/project-completed', {
-            method: 'POST',
-            setCookies
-          }).send({
+          const response = await superPost('/project-completed').send({
             id: id1,
             challengeType: 3
           });
@@ -376,10 +356,7 @@ describe('challengeRoutes', () => {
         });
 
         it('POST rejects requests with solutions that are not urls', async () => {
-          const response = await superRequest('/project-completed', {
-            method: 'POST',
-            setCookies
-          }).send({
+          const response = await superPost('/project-completed').send({
             id: id1,
             challengeType: 3,
             solution: 'not-a-valid-solution'
@@ -388,14 +365,37 @@ describe('challengeRoutes', () => {
           expect(response.body).toStrictEqual(
             isValidChallengeCompletionErrorMsg
           );
-          expect(response.statusCode).toBe(400);
+          expect(response.statusCode).toBe(403);
+        });
+
+        it('POST rejects backendProject requests without URL githubLinks', async () => {
+          const response = await superPost('/project-completed').send({
+            id: id1,
+            challengeType: challengeTypes.backEndProject,
+            // Solution is allowed to be localhost for backEndProject
+            solution: 'http://localhost:3000'
+          });
+
+          expect(response.body).toStrictEqual(
+            isValidChallengeCompletionErrorMsg
+          );
+          expect(response.statusCode).toBe(403);
+
+          const response_2 = await superPost('/project-completed').send({
+            id: id1,
+            challengeType: challengeTypes.backEndProject,
+            solution: 'http://localhost:3000',
+            githubLink: 'not-a-valid-url'
+          });
+
+          expect(response_2.body).toStrictEqual(
+            isValidChallengeCompletionErrorMsg
+          );
+          expect(response_2.statusCode).toBe(403);
         });
 
         it('POST rejects CodeRoad/CodeAlly projects when the user has not completed the required challenges', async () => {
-          const response = await superRequest('/project-completed', {
-            method: 'POST',
-            setCookies
-          }).send({
+          const response = await superPost('/project-completed').send({
             id: id1, // not a codeally challenge id, but does not matter
             challengeType: 13, // this does matter, however, since there's special logic for that challenge type
             solution: 'https://any.valid/url'
@@ -437,10 +437,8 @@ describe('challengeRoutes', () => {
 
         it('POST accepts CodeRoad/CodeAlly projects when the user has completed the required challenges', async () => {
           const now = Date.now();
-          const response = await superRequest('/project-completed', {
-            method: 'POST',
-            setCookies
-          }).send(codeallyProject);
+          const response =
+            await superPost('/project-completed').send(codeallyProject);
 
           const user = await fastifyTestInstance.prisma.user.findFirst({
             where: { email: 'foo@bar.com' }
@@ -474,10 +472,8 @@ describe('challengeRoutes', () => {
         it('POST accepts backend projects', async () => {
           const now = Date.now();
 
-          const response = await superRequest('/project-completed', {
-            method: 'POST',
-            setCookies
-          }).send(backendProject);
+          const response =
+            await superPost('/project-completed').send(backendProject);
 
           const user = await fastifyTestInstance.prisma.user.findFirst({
             where: { email: 'foo@bar.com' }
@@ -509,23 +505,19 @@ describe('challengeRoutes', () => {
         });
 
         it('POST correctly handles multiple requests', async () => {
-          const resOriginal = await superRequest('/project-completed', {
-            method: 'POST',
-            setCookies
-          }).send(codeallyProject);
+          const resOriginal =
+            await superPost('/project-completed').send(codeallyProject);
 
-          const resBackend = await superRequest('/project-completed', {
-            method: 'POST',
-            setCookies
-          }).send(backendProject);
+          const resBackend =
+            await superPost('/project-completed').send(backendProject);
 
           // sending backendProject again should update its solution, but not
           // progressTimestamps or its completedDate
 
-          const resUpdate = await superRequest('/project-completed', {
-            method: 'POST',
-            setCookies
-          }).send({ ...codeallyProject, solution: 'https://any.other/url' });
+          const resUpdate = await superPost('/project-completed').send({
+            ...codeallyProject,
+            solution: 'https://any.other/url'
+          });
 
           const user = await fastifyTestInstance.prisma.user.findFirst({
             where: { email: 'foo@bar.com' }
@@ -569,10 +561,7 @@ describe('challengeRoutes', () => {
     describe('/backend-challenge-completed', () => {
       describe('validation', () => {
         test('POST rejects requests without ids', async () => {
-          const response = await superRequest('/backend-challenge-completed', {
-            method: 'POST',
-            setCookies
-          });
+          const response = await superPost('/backend-challenge-completed');
 
           expect(response.body).toStrictEqual(
             isValidChallengeCompletionErrorMsg
@@ -581,10 +570,9 @@ describe('challengeRoutes', () => {
         });
 
         test('POST rejects requests without valid ObjectIDs', async () => {
-          const response = await superRequest('/backend-challenge-completed', {
-            method: 'POST',
-            setCookies
-          }).send({ id: 'not-a-valid-id', solution: '' });
+          const response = await superPost('/backend-challenge-completed').send(
+            { id: 'not-a-valid-id', solution: '' }
+          );
 
           expect(response.body).toStrictEqual(
             isValidChallengeCompletionErrorMsg
@@ -607,10 +595,9 @@ describe('challengeRoutes', () => {
         test('POST accepts backend challenges', async () => {
           const now = Date.now();
 
-          const response = await superRequest('/backend-challenge-completed', {
-            method: 'POST',
-            setCookies
-          }).send(backendChallengeBody1);
+          const response = await superPost('/backend-challenge-completed').send(
+            backendChallengeBody1
+          );
 
           const user = await fastifyTestInstance.prisma.user.findFirst({
             where: { email: 'foo@bar.com' }
@@ -638,25 +625,16 @@ describe('challengeRoutes', () => {
         });
 
         test('POST correctly handles multiple requests', async () => {
-          const resOriginal = await superRequest(
-            '/backend-challenge-completed',
-            {
-              method: 'POST',
-              setCookies
-            }
+          const resOriginal = await superPost(
+            '/backend-challenge-completed'
           ).send(backendChallengeBody1);
 
-          await superRequest('/backend-challenge-completed', {
-            method: 'POST',
-            setCookies
-          }).send(backendChallengeBody2);
+          await superPost('/backend-challenge-completed').send(
+            backendChallengeBody2
+          );
 
-          const resUpdated = await superRequest(
-            '/backend-challenge-completed',
-            {
-              method: 'POST',
-              setCookies
-            }
+          const resUpdated = await superPost(
+            '/backend-challenge-completed'
           ).send({
             ...backendChallengeBody1
           });
@@ -699,10 +677,7 @@ describe('challengeRoutes', () => {
     describe('/modern-challenge-completed', () => {
       describe('validation', () => {
         test('POST rejects requests without ids', async () => {
-          const response = await superRequest('/modern-challenge-completed', {
-            method: 'POST',
-            setCookies
-          });
+          const response = await superPost('/modern-challenge-completed');
 
           expect(response.body).toStrictEqual(
             isValidChallengeCompletionErrorMsg
@@ -711,10 +686,9 @@ describe('challengeRoutes', () => {
         });
 
         test('POST rejects requests without valid ObjectIDs', async () => {
-          const response = await superRequest('/modern-challenge-completed', {
-            method: 'POST',
-            setCookies
-          }).send({ id: 'not-a-valid-id' });
+          const response = await superPost('/modern-challenge-completed').send({
+            id: 'not-a-valid-id'
+          });
 
           expect(response.body).toStrictEqual(
             isValidChallengeCompletionErrorMsg
@@ -739,10 +713,9 @@ describe('challengeRoutes', () => {
         test('POST accepts challenges without files present', async () => {
           const now = Date.now();
 
-          const response = await superRequest('/modern-challenge-completed', {
-            method: 'POST',
-            setCookies
-          }).send(HtmlChallengeBody);
+          const response = await superPost('/modern-challenge-completed').send(
+            HtmlChallengeBody
+          );
 
           const user = await fastifyTestInstance.prisma.user.findFirstOrThrow({
             where: { email: 'foo@bar.com' }
@@ -774,10 +747,9 @@ describe('challengeRoutes', () => {
         test('POST accepts challenges with files present', async () => {
           const now = Date.now();
 
-          const response = await superRequest('/modern-challenge-completed', {
-            method: 'POST',
-            setCookies
-          }).send(JsProjectBody);
+          const response = await superPost('/modern-challenge-completed').send(
+            JsProjectBody
+          );
 
           const user = await fastifyTestInstance.prisma.user.findFirstOrThrow({
             where: { email: 'foo@bar.com' }
@@ -812,10 +784,9 @@ describe('challengeRoutes', () => {
         test('POST accepts challenges with saved solutions', async () => {
           const now = Date.now();
 
-          const response = await superRequest('/modern-challenge-completed', {
-            method: 'POST',
-            setCookies
-          }).send(multiFileCertProjectBody);
+          const response = await superPost('/modern-challenge-completed').send(
+            multiFileCertProjectBody
+          );
 
           const user = await fastifyTestInstance.prisma.user.findFirstOrThrow({
             where: { email: 'foo@bar.com' }
@@ -833,7 +804,7 @@ describe('challengeRoutes', () => {
                 challengeType: multiFileCertProjectBody.challengeType,
                 files: testFiles,
                 completedDate: expect.any(Number),
-                isManuallyApproved: true
+                isManuallyApproved: false
               }
             ],
             savedChallenges: [
@@ -865,23 +836,17 @@ describe('challengeRoutes', () => {
         });
 
         test('POST correctly handles multiple requests', async () => {
-          const resOriginal = await superRequest(
-            '/modern-challenge-completed',
-            {
-              method: 'POST',
-              setCookies
-            }
+          const resOriginal = await superPost(
+            '/modern-challenge-completed'
           ).send(multiFileCertProjectBody);
 
-          await superRequest('/modern-challenge-completed', {
-            method: 'POST',
-            setCookies
-          }).send(HtmlChallengeBody);
+          await superPost('/modern-challenge-completed').send(
+            HtmlChallengeBody
+          );
 
-          const resUpdate = await superRequest('/modern-challenge-completed', {
-            method: 'POST',
-            setCookies
-          }).send(updatedMultiFileCertProjectBody);
+          const resUpdate = await superPost('/modern-challenge-completed').send(
+            updatedMultiFileCertProjectBody
+          );
 
           const user = await fastifyTestInstance.prisma.user.findFirstOrThrow({
             where: { email: 'foo@bar.com' }
@@ -903,7 +868,7 @@ describe('challengeRoutes', () => {
                 challengeType: updatedMultiFileCertProjectBody.challengeType,
                 files: testFiles,
                 completedDate: expect.any(Number),
-                isManuallyApproved: true
+                isManuallyApproved: false
               },
               {
                 id: HtmlChallengeId,
@@ -947,10 +912,7 @@ describe('challengeRoutes', () => {
     describe('/save-challenge', () => {
       describe('validation', () => {
         test('POST returns 403 status for unsavable challenges', async () => {
-          const response = await superRequest('/save-challenge', {
-            method: 'POST',
-            setCookies
-          }).send({
+          const response = await superPost('/save-challenge').send({
             savedChallenges: {
               // valid mongo id, but not a saveable one
               id: 'aaaaaaaaaaaaaaaaaaaaaaa',
@@ -977,10 +939,7 @@ describe('challengeRoutes', () => {
         });
 
         test('POST update the user savedchallenges and return them', async () => {
-          const response = await superRequest('/save-challenge', {
-            method: 'POST',
-            setCookies
-          }).send({
+          const response = await superPost('/save-challenge').send({
             id: multiFileCertProjectId,
             files: updatedMultiFileCertProjectBody.files
           });
@@ -1021,10 +980,7 @@ describe('challengeRoutes', () => {
 
       describe('validation', () => {
         test('GET rejects requests without id param', async () => {
-          const response = await superRequest('/exam/', {
-            method: 'GET',
-            setCookies
-          });
+          const response = await superGet('/exam/');
 
           expect(response.body).toStrictEqual({
             error: `Valid 'id' not found in request parameters.`
@@ -1033,10 +989,7 @@ describe('challengeRoutes', () => {
         });
 
         test('GET rejects requests when id param is not a 24-character string', async () => {
-          const response = await superRequest('/exam/fake-id', {
-            method: 'GET',
-            setCookies
-          });
+          const response = await superGet('/exam/fake-id');
 
           expect(response.body).toStrictEqual({
             error: `Valid 'id' not found in request parameters.`
@@ -1045,13 +998,7 @@ describe('challengeRoutes', () => {
         });
 
         test('GET rejects requests with non-existent id param', async () => {
-          const response = await superRequest(
-            '/exam/123412341234123412341234',
-            {
-              method: 'GET',
-              setCookies
-            }
-          );
+          const response = await superGet('/exam/123412341234123412341234');
 
           expect(response.body).toStrictEqual({
             error: 'An error occurred trying to get the exam from the database.'
@@ -1060,13 +1007,7 @@ describe('challengeRoutes', () => {
         });
 
         test('GET rejects requests where camper has not completed prerequisites', async () => {
-          const response = await superRequest(
-            '/exam/647e22d18acb466c97ccbef8',
-            {
-              method: 'GET',
-              setCookies
-            }
-          );
+          const response = await superGet('/exam/647e22d18acb466c97ccbef8');
 
           expect(response.body).toStrictEqual({
             error: `You have not completed the required challenges to start the 'Exam Certification'.`
@@ -1082,20 +1023,14 @@ describe('challengeRoutes', () => {
             data: { completedChallenges: completedTrophyChallenges }
           });
 
-          const response = await superRequest(
-            '/exam/647e22d18acb466c97ccbef8',
-            {
-              method: 'GET',
-              setCookies
-            }
-          );
+          const response = await superGet('/exam/647e22d18acb466c97ccbef8');
 
           expect(response.body).toHaveProperty('generatedExam');
 
           const { generatedExam } = response.body;
 
           expect(Array.isArray(generatedExam)).toBe(true);
-          expect(generatedExam).toHaveLength(1);
+          expect(generatedExam).toHaveLength(3);
 
           expect(generatedExam[0]).toHaveProperty('question');
           expect(typeof generatedExam[0].question).toBe('string');
@@ -1107,7 +1042,7 @@ describe('challengeRoutes', () => {
           expect(Array.isArray(generatedExam[0].answers)).toBe(true);
           expect(generatedExam[0].answers).toHaveLength(5);
 
-          const answers = generatedExam[0].answers as GeneratedAnswer[];
+          const answers = generatedExam[0].answers as Answer[];
 
           answers.forEach(a => {
             expect(a).toHaveProperty('answer');
@@ -1126,7 +1061,7 @@ describe('challengeRoutes', () => {
         // Create and Run Simple C# Console Applications's id:
         const trophyChallengeId2 = '647f87dc07d29547b3bee1bf';
         const nonTrophyChallengeId = 'bd7123c8c441eddfaeb5bdef';
-        const solutionUrl = `https://learn.microsoft.com/api/gamestatus/${msUserId}`;
+        const solutionUrl = `https://learn.microsoft.com/api/achievements/user/${msUserId}`;
 
         const idIsMissingOrInvalid = {
           type: 'error',
@@ -1143,23 +1078,13 @@ describe('challengeRoutes', () => {
 
         describe('validation', () => {
           test('POST rejects requests without valid ids', async () => {
-            const resNoId = await superRequest(
-              '/ms-trophy-challenge-completed',
-              {
-                method: 'POST',
-                setCookies
-              }
-            );
+            const resNoId = await superPost('/ms-trophy-challenge-completed');
 
             expect(resNoId.body).toStrictEqual(idIsMissingOrInvalid);
             expect(resNoId.statusCode).toBe(400);
 
-            const resBadId = await superRequest(
-              '/ms-trophy-challenge-completed',
-              {
-                method: 'POST',
-                setCookies
-              }
+            const resBadId = await superPost(
+              '/ms-trophy-challenge-completed'
             ).send({ id: nonTrophyChallengeId });
 
             expect(resBadId.body).toStrictEqual(idIsMissingOrInvalid);
@@ -1168,12 +1093,8 @@ describe('challengeRoutes', () => {
 
           // TODO(Post-MVP): give a more specific error message
           test('POST rejects requests without valid ObjectIDs', async () => {
-            const response = await superRequest(
-              '/ms-trophy-challenge-completed',
-              {
-                method: 'POST',
-                setCookies
-              }
+            const response = await superPost(
+              '/ms-trophy-challenge-completed'
             ).send({ id: 'not-a-valid-id' });
 
             expect(response.body).toStrictEqual(idIsMissingOrInvalid);
@@ -1205,10 +1126,9 @@ describe('challengeRoutes', () => {
           });
 
           test('POST rejects requests if the user does not have a Microsoft username', async () => {
-            const res = await superRequest('/ms-trophy-challenge-completed', {
-              method: 'POST',
-              setCookies
-            }).send({ id: trophyChallengeId });
+            const res = await superPost('/ms-trophy-challenge-completed').send({
+              id: trophyChallengeId
+            });
 
             expect(res.body).toStrictEqual(userHasNotLinkedTheirAccount);
             expect(res.statusCode).toBe(403);
@@ -1231,10 +1151,9 @@ describe('challengeRoutes', () => {
               Promise.resolve(verifyError)
             );
 
-            const res = await superRequest('/ms-trophy-challenge-completed', {
-              method: 'POST',
-              setCookies
-            }).send({ id: trophyChallengeId });
+            const res = await superPost('/ms-trophy-challenge-completed').send({
+              id: trophyChallengeId
+            });
 
             expect(res.body).toStrictEqual(verifyError);
             expect(res.statusCode).toBe(403);
@@ -1247,10 +1166,9 @@ describe('challengeRoutes', () => {
             const msUsername = 'ANRandom';
             await createMSUsernameRecord(msUsername);
 
-            const res = await superRequest('/ms-trophy-challenge-completed', {
-              method: 'POST',
-              setCookies
-            }).send({ id: trophyChallengeId });
+            const res = await superPost('/ms-trophy-challenge-completed').send({
+              id: trophyChallengeId
+            });
 
             expect(res.body).toStrictEqual(unexpectedError);
             expect(res.statusCode).toBe(500);
@@ -1260,17 +1178,16 @@ describe('challengeRoutes', () => {
             mockVerifyTrophyWithMicrosoft.mockImplementationOnce(() =>
               Promise.resolve({
                 type: 'success',
-                msGameStatusApiUrl: solutionUrl
+                msUserAchievementsApiUrl: solutionUrl
               })
             );
             const msUsername = 'ANRandom';
             await createMSUsernameRecord(msUsername);
             const now = Date.now();
 
-            const res = await superRequest('/ms-trophy-challenge-completed', {
-              method: 'POST',
-              setCookies
-            }).send({ id: trophyChallengeId });
+            const res = await superPost('/ms-trophy-challenge-completed').send({
+              id: trophyChallengeId
+            });
 
             const user =
               await fastifyTestInstance.prisma.user.findUniqueOrThrow({
@@ -1304,32 +1221,24 @@ describe('challengeRoutes', () => {
             mockVerifyTrophyWithMicrosoft.mockImplementationOnce(() =>
               Promise.resolve({
                 type: 'success',
-                msGameStatusApiUrl: solutionUrl
+                msUserAchievementsApiUrl: solutionUrl
               })
             );
             const msUsername = 'ANRandom';
             await createMSUsernameRecord(msUsername);
 
-            const resOne = await superRequest(
-              '/ms-trophy-challenge-completed',
-              {
-                method: 'POST',
-                setCookies
-              }
+            const resOne = await superPost(
+              '/ms-trophy-challenge-completed'
             ).send({ id: trophyChallengeId });
 
             mockVerifyTrophyWithMicrosoft.mockImplementationOnce(() =>
               Promise.resolve({
                 type: 'success',
-                msGameStatusApiUrl: solutionUrl
+                msUserAchievementsApiUrl: solutionUrl
               })
             );
-            const resTwo = await superRequest(
-              '/ms-trophy-challenge-completed',
-              {
-                method: 'POST',
-                setCookies
-              }
+            const resTwo = await superPost(
+              '/ms-trophy-challenge-completed'
             ).send({ id: trophyChallengeId2 });
 
             // sending the second trophy challenge again should not change
@@ -1337,15 +1246,11 @@ describe('challengeRoutes', () => {
             mockVerifyTrophyWithMicrosoft.mockImplementationOnce(() =>
               Promise.resolve({
                 type: 'success',
-                msGameStatusApiUrl: solutionUrl
+                msUserAchievementsApiUrl: solutionUrl
               })
             );
-            const resUpdate = await superRequest(
-              '/ms-trophy-challenge-completed',
-              {
-                method: 'POST',
-                setCookies
-              }
+            const resUpdate = await superPost(
+              '/ms-trophy-challenge-completed'
             ).send({ id: trophyChallengeId2 });
 
             const { completedChallenges, progressTimestamps } =
@@ -1392,6 +1297,386 @@ describe('challengeRoutes', () => {
         });
       });
     });
+
+    describe('/exam-challenge-completed', () => {
+      afterEach(async () => {
+        await fastifyTestInstance.prisma.user.updateMany({
+          where: { id: defaultUserId },
+          data: {
+            completedChallenges: [],
+            completedExams: [],
+            progressTimestamps: []
+          }
+        });
+      });
+
+      describe('validation', () => {
+        test('POST rejects requests with no body', async () => {
+          const response = await superRequest('/exam-challenge-completed', {
+            method: 'POST',
+            setCookies
+          });
+
+          expect(response.body).toStrictEqual({
+            error: `Valid request body not found in attempt to submit exam.`
+          });
+          expect(response.statusCode).toBe(400);
+        });
+
+        test('POST rejects requests without valid ObjectID', async () => {
+          const response = await superRequest('/exam-challenge-completed', {
+            method: 'POST',
+            setCookies
+          }).send({ id: 'not-a-valid-id' });
+
+          expect(response.body).toStrictEqual({
+            error: `Valid request body not found in attempt to submit exam.`
+          });
+          expect(response.statusCode).toBe(400);
+        });
+
+        test('POST rejects requests with valid, but non existing ID', async () => {
+          const response = await superRequest('/exam-challenge-completed', {
+            method: 'POST',
+            setCookies
+          }).send({
+            id: '647e22d18acb466c97ccbef0',
+            challengeType: 17,
+            userCompletedExam: {
+              examTimeInSeconds: 111,
+              userExamQuestions: [
+                {
+                  id: 'q-id',
+                  question: '?',
+                  answer: {
+                    id: 'a-id',
+                    answer: 'a'
+                  }
+                }
+              ]
+            }
+          });
+
+          expect(response.body).toStrictEqual({
+            error: `An error occurred trying to get the exam from the database.`
+          });
+          expect(response.statusCode).toBe(400);
+        });
+
+        test('POST rejects requests without valid userCompletedExam schema', async () => {
+          const response = await superRequest('/exam-challenge-completed', {
+            method: 'POST',
+            setCookies
+          }).send({
+            id: examChallengeId,
+            challengeType: 17,
+            userCompletedExam: ''
+          });
+
+          expect(response.body).toStrictEqual({
+            error: `Valid request body not found in attempt to submit exam.`
+          });
+          expect(response.statusCode).toBe(400);
+        });
+
+        test('POST rejects requests without valid examTimeInSeconds schema', async () => {
+          const response = await superRequest('/exam-challenge-completed', {
+            method: 'POST',
+            setCookies
+          }).send({
+            id: examChallengeId,
+            challengeType: 17,
+            userCompletedExam: { examTimeInSeconds: 'a' }
+          });
+
+          expect(response.body).toStrictEqual({
+            error: `Valid request body not found in attempt to submit exam.`
+          });
+          expect(response.statusCode).toBe(400);
+        });
+
+        test('POST rejects requests without valid userExamQuestions schema', async () => {
+          const response = await superRequest('/exam-challenge-completed', {
+            method: 'POST',
+            setCookies
+          }).send({
+            id: examChallengeId,
+            challengeType: 17,
+            userCompletedExam: { examTimeInSeconds: 11, userExamQuestions: [] }
+          });
+
+          expect(response.body).toStrictEqual({
+            error: `Valid request body not found in attempt to submit exam.`
+          });
+          expect(response.statusCode).toBe(400);
+        });
+
+        test('POST rejects requests with prerequisites not completed', async () => {
+          const response = await superRequest('/exam-challenge-completed', {
+            method: 'POST',
+            setCookies
+          }).send({
+            id: examChallengeId,
+            challengeType: 17,
+            userCompletedExam: {
+              examTimeInSeconds: 111,
+              userExamQuestions: [
+                {
+                  id: 'q-id',
+                  question: '?',
+                  answer: {
+                    id: 'a-id',
+                    answer: 'a'
+                  }
+                }
+              ]
+            }
+          });
+
+          expect(response.body).toStrictEqual({
+            error: `You have not completed the required challenges to start the 'Exam Certification'.`
+          });
+          expect(response.statusCode).toBe(403);
+        });
+
+        test('POST rejects requests with invalid userCompletedExam values', async () => {
+          await fastifyTestInstance.prisma.user.updateMany({
+            where: { email: 'foo@bar.com' },
+            data: {
+              completedChallenges: completedTrophyChallenges
+            }
+          });
+
+          const response = await superRequest('/exam-challenge-completed', {
+            method: 'POST',
+            setCookies
+          }).send({
+            id: examChallengeId,
+            challengeType: 17,
+            userCompletedExam: {
+              examTimeInSeconds: 111,
+              userExamQuestions: [
+                {
+                  id: 'q-id',
+                  question: '?',
+                  answer: {
+                    id: 'a-id',
+                    answer: 'a'
+                  }
+                }
+              ]
+            }
+          });
+
+          expect(response.body).toStrictEqual({
+            error: `An error occurred trying to submit your exam.`
+          });
+          expect(response.statusCode).toBe(500);
+        });
+      });
+
+      describe('handling', () => {
+        beforeEach(async () => {
+          await fastifyTestInstance.prisma.user.updateMany({
+            where: { id: defaultUserId },
+            data: {
+              completedChallenges: completedTrophyChallenges
+            }
+          });
+        });
+
+        afterEach(async () => {
+          await fastifyTestInstance.prisma.user.updateMany({
+            where: { id: defaultUserId },
+            data: {
+              completedChallenges: [],
+              completedExams: [],
+              progressTimestamps: []
+            }
+          });
+        });
+
+        const submitExam = async (exam: ExamSubmission) => {
+          return superRequest('/exam-challenge-completed', {
+            method: 'POST',
+            setCookies
+          }).send({
+            id: examChallengeId,
+            challengeType: 17,
+            userCompletedExam: exam
+          });
+        };
+
+        test('POST handles submitting a failing exam', async () => {
+          const now = Date.now();
+
+          // Submit exam with 0 correct answers
+          const response = await submitExam(examWithZeroCorrect);
+
+          type GetSessionUserResponseBody = Static<
+            (typeof getSessionUser)['response']['200']
+          >['user'];
+
+          const res = (await superGet('/user/get-session-user')).body as {
+            user: GetSessionUserResponseBody;
+          };
+
+          const { completedChallenges, completedExams, calendar } =
+            res.user[defaultUsername]!;
+
+          // should have the 1 prerequisite challenge
+          expect(completedChallenges).toHaveLength(1);
+          expect(completedExams).toHaveLength(1);
+          expect(calendar).toStrictEqual({});
+          expect(completedChallenges).toEqual(completedTrophyChallenges);
+          expect(completedExams[0]).toEqual({
+            id: '647e22d18acb466c97ccbef8',
+            challengeType: 17,
+            completedDate: expect.any(Number),
+            examResults: mockResultsZeroCorrect
+          });
+
+          expect(completedExams[0]?.completedDate).toBeGreaterThan(now);
+          expect(response.body).toMatchObject({
+            points: 0,
+            alreadyCompleted: false,
+            examResults: mockResultsZeroCorrect
+          });
+          expect(response.statusCode).toBe(200);
+        });
+
+        test("POST always adds to the user's completedExams", async () => {
+          let now = Date.now();
+          // The first exam should be stored in the user's completedExams
+          await submitExam(examWithAllCorrect);
+
+          let { completedExams } =
+            await fastifyTestInstance.prisma.user.findFirstOrThrow({
+              where: { id: defaultUserId }
+            });
+
+          expect(completedExams).toHaveLength(1);
+          expect(completedExams[0]).toEqual(completedExamChallengeAllCorrect);
+          expect(completedExams[0]?.completedDate).toBeGreaterThan(now);
+          expect(completedExams[0]?.completedDate).toBeLessThan(Date.now());
+
+          now = Date.now();
+          // the second exam should be added to the exams, not replace the first
+          await submitExam(examWithOneCorrect);
+
+          completedExams = (
+            await fastifyTestInstance.prisma.user.findFirstOrThrow({
+              where: { id: defaultUserId }
+            })
+          ).completedExams;
+
+          expect(completedExams).toHaveLength(2);
+          expect(completedExams).toEqual(
+            expect.arrayContaining([
+              completedExamChallengeAllCorrect,
+              completedExamChallengeOneCorrect
+            ])
+          );
+          expect(completedExams[1]?.completedDate).toBeGreaterThan(now);
+          expect(completedExams[1]?.completedDate).toBeLessThan(Date.now());
+        });
+
+        test('POST updates user progress if they have not completed the exam before', async () => {
+          // Submit exam with 2/3 correct answers
+          const now = Date.now();
+          const res = await submitExam(examWithTwoCorrect);
+
+          const user = await fastifyTestInstance.prisma.user.findFirstOrThrow({
+            where: { id: defaultUserId }
+          });
+
+          // should add to completedChallenges
+          expect(user.completedChallenges).toHaveLength(2);
+          expect(user.completedChallenges).toMatchObject([
+            ...completedTrophyChallenges,
+            completedExamChallengeTwoCorrect
+          ]);
+          expect(user.completedChallenges[1]?.completedDate).toBeGreaterThan(
+            now
+          );
+
+          // should add to progressTimestamps
+          expect(user.progressTimestamps).toHaveLength(1);
+
+          expect(res.body).toMatchObject({
+            points: 1,
+            alreadyCompleted: false,
+            examResults: mockResultsTwoCorrect
+          });
+          expect(res.statusCode).toBe(200);
+        });
+
+        test('POST does not update user progress if new exam is not an improvement', async () => {
+          // Submit exam with 2/3 correct answers
+          await submitExam(examWithTwoCorrect);
+
+          const user1 = await fastifyTestInstance.prisma.user.findFirstOrThrow({
+            where: { id: defaultUserId }
+          });
+
+          // Submit exam with 2/3 correct answers (no improvement)
+          const res2 = await submitExam(examWithTwoCorrect);
+
+          const user2 = await fastifyTestInstance.prisma.user.findFirstOrThrow({
+            where: { id: defaultUserId }
+          });
+
+          // should not update user progress
+          expect(user2.completedChallenges).toEqual(user1.completedChallenges);
+          expect(user2.progressTimestamps).toEqual(user1.progressTimestamps);
+
+          expect(res2.body).toMatchObject({
+            points: 1,
+            alreadyCompleted: true,
+            examResults: mockResultsTwoCorrect
+          });
+          expect(res2.statusCode).toBe(200);
+        });
+
+        test('POST updates user progress if exam is an improvement', async () => {
+          // Submit exam with 2/3 correct answers
+          await submitExam(examWithTwoCorrect);
+          const user1 = await fastifyTestInstance.prisma.user.findUniqueOrThrow(
+            {
+              where: { id: defaultUserId }
+            }
+          );
+
+          // Submit improved exam
+          const res = await submitExam(examWithAllCorrect);
+
+          const user2 = await fastifyTestInstance.prisma.user.findFirstOrThrow({
+            where: { email: 'foo@bar.com' }
+          });
+
+          // should update existing completedChallenge
+          expect(user2.completedChallenges).toHaveLength(2);
+          expect(user2.completedChallenges).toMatchObject([
+            ...completedTrophyChallenges,
+            completedExamChallengeAllCorrect
+          ]);
+          expect(user2.completedChallenges[1]?.completedDate).toEqual(
+            user1.completedChallenges[1]?.completedDate
+          );
+
+          // they have not completed anything new, so progressTimestamps should
+          // remain the same
+          expect(user2.progressTimestamps).toEqual(user1.progressTimestamps);
+
+          expect(res.body).toMatchObject({
+            points: 1,
+            alreadyCompleted: true,
+            examResults: mockResultsAllCorrect
+          });
+          expect(res.statusCode).toBe(200);
+        });
+      });
+    });
   });
 
   describe('Unauthenticated user', () => {
@@ -1410,7 +1695,8 @@ describe('challengeRoutes', () => {
       { path: '/modern-challenge-completed', method: 'POST' },
       { path: '/save-challenge', method: 'POST' },
       { path: '/exam/647e22d18acb466c97ccbef8', method: 'GET' },
-      { path: '/ms-trophy-challenge-completed', method: 'POST' }
+      { path: '/ms-trophy-challenge-completed', method: 'POST' },
+      { path: '/exam-challenge-completed', method: 'POST' }
     ];
 
     endpoints.forEach(({ path, method }) => {

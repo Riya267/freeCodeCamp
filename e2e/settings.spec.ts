@@ -4,8 +4,6 @@ test.use({ storageState: 'playwright/.auth/certified-user.json' });
 
 const settingsTestIds = {
   settingsHeading: 'settings-heading',
-  newEmail: 'new-email-input',
-  confirmEmail: 'confirm-email-input',
   internetPresence: 'internet-presence',
   portfolioItems: 'portfolio-items',
   camperIdentity: 'camper-identity'
@@ -13,14 +11,10 @@ const settingsTestIds = {
 
 const settingsObject = {
   email: 'foo@bar.com',
+  userNamePlaceholder: '{{username}}',
   certifiedUsername: 'certifieduser',
   testEmail: 'test@gmail.com',
   pageTitle: `${translations.buttons.settings} | freeCodeCamp.org`,
-  userNamePlaceholder: '{{username}}',
-  testUser: 'testuser',
-  errorCode: '404',
-  invalidUserName: 'user!',
-  tooShortUserName: 'us',
   private: 'Private',
   public: 'Public',
   supportEmail: 'support@freecodecamp.org',
@@ -57,13 +51,11 @@ test.describe('Settings', () => {
     await page.goto('/settings');
   });
 
-  test('Should have the correct page title', async ({ page, browserName }) => {
-    test.skip(browserName === 'webkit', 'csrf_token cookie is being deleted');
+  test('Should have the correct page title', async ({ page }) => {
     await expect(page).toHaveTitle(settingsObject.pageTitle);
   });
 
-  test('Should display the correct header', async ({ page, browserName }) => {
-    test.skip(browserName === 'webkit', 'csrf_token cookie is being deleted');
+  test('Should display the correct header', async ({ page }) => {
     const header = page.getByTestId(settingsTestIds.settingsHeading);
     await expect(header).toBeVisible();
     await expect(header).toContainText(
@@ -74,50 +66,7 @@ test.describe('Settings', () => {
     );
   });
 
-  test('Should validate Username Settings', async ({ page, browserName }) => {
-    test.skip(browserName === 'webkit', 'csrf_token cookie is being deleted');
-    const inputLabel = page.getByLabel(translations.settings.labels.username);
-    await expect(inputLabel).toBeVisible();
-    await inputLabel.fill(settingsObject.testUser);
-    await expect(
-      page.getByText(translations.settings.username.validating)
-    ).toBeVisible();
-    await inputLabel.fill(settingsObject.errorCode);
-    await expect(
-      page.getByText(
-        translations.settings.username['is a reserved error code'].replace(
-          settingsObject.userNamePlaceholder,
-          settingsObject.errorCode
-        )
-      )
-    ).toBeVisible();
-    await inputLabel.fill(settingsObject.invalidUserName);
-    await expect(
-      page.getByText(
-        translations.settings.username['contains invalid characters'].replace(
-          settingsObject.userNamePlaceholder,
-          settingsObject.invalidUserName
-        )
-      )
-    ).toBeVisible();
-    await inputLabel.fill(settingsObject.tooShortUserName);
-    await expect(
-      page.getByText(
-        translations.settings.username['is too short'].replace(
-          settingsObject.userNamePlaceholder,
-          settingsObject.tooShortUserName
-        )
-      )
-    ).toBeVisible();
-    await inputLabel.fill(settingsObject.certifiedUsername);
-    const saveButton = page.getByRole('button', {
-      name: translations.settings.labels.username
-    });
-    await expect(saveButton).toBeVisible();
-  });
-
-  test('Should validate Privacy Settings', async ({ page, browserName }) => {
-    test.skip(browserName === 'webkit', 'csrf_token cookie is being deleted');
+  test('Should validate Privacy Settings', async ({ page }) => {
     await expect(
       page.getByRole('heading', {
         name: translations.settings.headings.privacy
@@ -222,11 +171,7 @@ test.describe('Settings', () => {
     await expect(downloadButton).toBeVisible();
   });
 
-  test('Should validate Internet Presence Settings', async ({
-    page,
-    browserName
-  }) => {
-    test.skip(browserName === 'webkit', 'csrf_token cookie is being deleted');
+  test('Should validate Internet Presence Settings', async ({ page }) => {
     await expect(
       page.getByRole('heading', {
         name: translations.settings.headings.internet
@@ -241,39 +186,7 @@ test.describe('Settings', () => {
     await expect(saveButton).toBeVisible();
   });
 
-  test('Should validate Portfolio Settings', async ({ page, browserName }) => {
-    test.skip(browserName === 'webkit', 'csrf_token cookie is being deleted');
-    await expect(
-      page.getByRole('heading', {
-        name: translations.settings.headings.portfolio
-      })
-    ).toBeVisible();
-    await expect(
-      page.getByText(translations.settings['share-projects'])
-    ).toBeVisible();
-    const addPortfolioButton = page.getByText(
-      translations.buttons['add-portfolio']
-    );
-    await expect(addPortfolioButton).toBeVisible();
-    await addPortfolioButton.click();
-    await expect(
-      page.getByTestId(settingsTestIds.portfolioItems)
-    ).toBeVisible();
-    const saveButton = page.getByRole('button', {
-      name: translations.buttons['save-portfolio']
-    });
-    await expect(saveButton).toBeVisible();
-    const removeButton = page.getByRole('button', {
-      name: translations.buttons['remove-portfolio']
-    });
-    await expect(removeButton).toBeVisible();
-  });
-
-  test('Should validate Personal Portfolio Settings', async ({
-    page,
-    browserName
-  }) => {
-    test.skip(browserName === 'webkit', 'csrf_token cookie is being deleted');
+  test('Should validate Personal Information Settings', async ({ page }) => {
     await expect(
       page.getByRole('heading', {
         name: translations.settings.headings['personal-info']
@@ -286,7 +199,19 @@ test.describe('Settings', () => {
       name: translations.settings.headings['personal-info']
     });
     await expect(saveButton).toBeVisible();
-    await saveButton.press('Enter');
+    await expect(saveButton).toBeDisabled();
+    await expect(
+      page.getByLabel(translations.settings.labels.name, { exact: true })
+    ).toHaveValue('Full Stack User');
+    await expect(
+      page.getByLabel(translations.settings.labels.location)
+    ).toHaveValue('');
+    await expect(
+      page.getByLabel(translations.settings.labels.picture)
+    ).toHaveValue('');
+    await expect(
+      page.getByLabel(translations.settings.labels.about)
+    ).toHaveValue('');
     await expect(
       page
         .getByRole('group', {
@@ -305,26 +230,14 @@ test.describe('Settings', () => {
           name: translations.settings.labels['keyboard-shortcuts']
         })
         .locator('p')
+        .first()
     ).toBeVisible();
     await expect(
       page.getByText(translations.settings['scrollbar-width'])
     ).toBeVisible();
-    const addPortfolioButton = page.getByText(
-      translations.buttons['add-portfolio']
-    );
-    await expect(addPortfolioButton).toBeVisible();
-    await addPortfolioButton.click();
-    const removeButton = page.getByRole('button', {
-      name: translations.buttons['remove-portfolio']
-    });
-    await expect(removeButton).toBeVisible();
   });
 
-  test('Should validate Academy Honesty Settings', async ({
-    page,
-    browserName
-  }) => {
-    test.skip(browserName === 'webkit', 'csrf_token cookie is being deleted');
+  test('Should validate Academy Honesty Settings', async ({ page }) => {
     await expect(
       page.getByRole('heading', {
         name: translations.settings.headings.honesty
@@ -366,11 +279,7 @@ test.describe('Settings', () => {
     ).toBeVisible();
   });
 
-  test('Should validate Certification Settings', async ({
-    page,
-    browserName
-  }) => {
-    test.skip(browserName === 'webkit', 'csrf_token cookie is being deleted');
+  test('Should validate Certification Settings', async ({ page }) => {
     await expect(
       page.getByRole('heading', {
         name: translations.settings.headings.certs,
@@ -392,11 +301,7 @@ test.describe('Settings', () => {
     }
   });
 
-  test('Should validate Legacy Certification Settings', async ({
-    page,
-    browserName
-  }) => {
-    test.skip(browserName === 'webkit', 'csrf_token cookie is being deleted');
+  test('Should validate Legacy Certification Settings', async ({ page }) => {
     await expect(
       page.getByRole('heading', {
         name: translations.settings.headings['legacy-certs'],
@@ -419,55 +324,21 @@ test.describe('Settings', () => {
     }
   });
 
-  test('Should validate Danger Section Settings', async ({
-    page,
-    browserName
-  }) => {
-    test.skip(browserName === 'webkit', 'csrf_token cookie is being deleted');
+  test('Should display the Danger section properly', async ({ page }) => {
+    await expect(page.getByText('Danger Zone')).toBeVisible();
     await expect(
-      page.getByText(translations.settings.danger.heading, {
-        exact: true
-      })
+      page.getByText(
+        'Please be careful. Changes in this section are permanent.'
+      )
     ).toBeVisible();
-    await expect(
-      page.getByText(translations.settings.danger['be-careful'], {
-        exact: true
-      })
-    ).toBeVisible();
-    await page
-      .getByRole('button', {
-        name: translations.settings.danger.reset,
-        exact: true
-      })
-      .click();
-    await page
-      .getByRole('button', {
-        name: translations.settings.danger['nevermind-2'],
-        exact: true
-      })
-      .click();
     await expect(
       page.getByRole('button', {
-        name: translations.settings.danger['reset-confirm'],
-        exact: true
+        name: 'Reset all of my progress'
       })
     ).toBeVisible();
-    await page
-      .getByRole('button', {
-        name: translations.settings.danger.delete,
-        exact: true
-      })
-      .click();
-    await page
-      .getByRole('button', {
-        name: translations.settings.danger.nevermind,
-        exact: true
-      })
-      .click();
     await expect(
       page.getByRole('button', {
-        name: translations.settings.danger.certain,
-        exact: true
+        name: 'Delete my account'
       })
     ).toBeVisible();
   });

@@ -1,14 +1,11 @@
-import { Button } from '@freecodecamp/react-bootstrap';
 import React, { Component } from 'react';
 import type { TFunction } from 'i18next';
 import { withTranslation } from 'react-i18next';
 import { connect } from 'react-redux';
-import { Panel } from '@freecodecamp/ui';
+import { Panel, Button } from '@freecodecamp/ui';
 
 import { deleteUserToken } from '../../redux/actions';
 import { FullWidthRow, Spacer } from '../helpers';
-
-import './user-token.css';
 
 type UserTokenProps = {
   deleteUserToken: () => void;
@@ -30,7 +27,10 @@ class UserToken extends Component<UserTokenProps> {
     const { t } = this.props;
 
     return (
-      <div data-cy='user-token' className='user-token text-center'>
+      <div
+        data-playwright-test-label='user-token'
+        className='user-token text-center'
+      >
         <FullWidthRow>
           <Panel variant='info'>
             <Panel.Heading>{t('user-token.title')}</Panel.Heading>
@@ -40,10 +40,8 @@ class UserToken extends Component<UserTokenProps> {
               <Spacer size='small' />
               <Button
                 block={true}
-                bsSize='lg'
-                bsStyle='danger'
-                className='btn-info'
-                data-cy='delete-user-token'
+                size='large'
+                variant='info'
                 onClick={this.deleteToken}
                 type='button'
               >

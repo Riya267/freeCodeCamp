@@ -1,3 +1,4 @@
+import { createSelector } from 'reselect';
 import { challengeTypes } from '../../../../../shared/config/challenge-types';
 import {
   completedChallengesSelector,
@@ -89,6 +90,7 @@ export const challengeDataSelector = state => {
     challengeType === challengeTypes.html ||
     challengeType === challengeTypes.modern ||
     challengeType === challengeTypes.multifileCertProject ||
+    challengeType === challengeTypes.multifilePythonCertProject ||
     challengeType === challengeTypes.python
   ) {
     const { required = [], template = '' } = challengeMetaSelector(state);
@@ -102,17 +104,20 @@ export const challengeDataSelector = state => {
   return challengeData;
 };
 
-export const currentBlockIdsSelector = state => {
-  const { block, certification, challengeType } = challengeMetaSelector(state);
-  const allChallengesInfo = allChallengesInfoSelector(state);
+export const currentBlockIdsSelector = createSelector(
+  challengeMetaSelector,
+  allChallengesInfoSelector,
+  (challengeMeta, allChallengesInfo) => {
+    const { block, certification, challengeType } = challengeMeta;
 
-  return getCurrentBlockIds(
-    allChallengesInfo,
-    block,
-    certification,
-    challengeType
-  );
-};
+    return getCurrentBlockIds(
+      allChallengesInfo,
+      block,
+      certification,
+      challengeType
+    );
+  }
+);
 
 export const completedChallengesInBlockSelector = state => {
   const completedChallengesIds = completedChallengesIdsSelector(state);
@@ -126,20 +131,22 @@ export const completedChallengesInBlockSelector = state => {
   );
 };
 
-export const completedPercentageSelector = state => {
-  const isSignedIn = isSignedInSelector(state);
-  if (isSignedIn) {
-    const completedChallengesIds = completedChallengesIdsSelector(state);
-    const { id } = challengeMetaSelector(state);
-    const currentBlockIds = currentBlockIdsSelector(state);
-    const completedPercentage = getCompletedPercentage(
-      completedChallengesIds,
-      currentBlockIds,
-      id
-    );
-    return completedPercentage;
-  } else return 0;
-};
+export const completedPercentageSelector = createSelector(
+  isSignedInSelector,
+  completedChallengesSelector,
+  challengeMetaSelector,
+  currentBlockIdsSelector,
+  (isSignedIn, completedChallenges, { id }, currentBlockIds) => {
+    if (isSignedIn) {
+      const completedPercentage = getCompletedPercentage(
+        completedChallenges.map(node => node.id),
+        currentBlockIds,
+        id
+      );
+      return completedPercentage;
+    } else return 0;
+  }
+);
 
 export const isBlockNewlyCompletedSelector = state => {
   const completedPercentage = completedPercentageSelector(state);

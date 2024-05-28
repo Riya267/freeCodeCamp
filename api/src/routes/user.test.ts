@@ -12,7 +12,8 @@ import {
   defaultUserEmail,
   devLogin,
   setupServer,
-  superRequest
+  superRequest,
+  createSuperRequest
 } from '../../jest.utils';
 import { JWT_SECRET } from '../utils/env';
 import { getMsTranscriptApiUrl } from './user';
@@ -63,6 +64,7 @@ const testUserData: Prisma.userCreateInput = {
     }
   ],
   partiallyCompletedChallenges: [{ id: '123', completedDate: 123 }],
+  completedExams: [],
   githubProfile: 'github.com/foobar',
   website: 'https://www.freecodecamp.org',
   donationEmails: ['an@add.ress'],
@@ -174,6 +176,8 @@ const publicUserData = {
       files: []
     }
   ],
+  completedExams: testUserData.completedExams,
+  completedSurveys: [],
   githubProfile: testUserData.githubProfile,
   isApisMicroservicesCert: testUserData.isApisMicroservicesCert,
   isBackEndCert: testUserData.isBackEndCert,
@@ -181,7 +185,9 @@ const publicUserData = {
   isDonating: testUserData.isDonating,
   isEmailVerified: testUserData.emailVerified,
   is2018DataVisCert: testUserData.is2018DataVisCert,
+  is2018FullStackCert: testUserData.is2018FullStackCert,
   isDataVisCert: testUserData.isDataVisCert,
+  isFoundationalCSharpCertV8: testUserData.isFoundationalCSharpCertV8,
   isFrontEndCert: testUserData.isFrontEndCert,
   isFullStackCert: testUserData.isFullStackCert,
   isFrontEndLibsCert: testUserData.isFrontEndLibsCert,
@@ -190,6 +196,7 @@ const publicUserData = {
   isQaCertV7: testUserData.isQaCertV7,
   isInfosecCertV7: testUserData.isInfosecCertV7,
   isJsAlgoDataStructCert: testUserData.isJsAlgoDataStructCert,
+  isJsAlgoDataStructCertV8: testUserData.isJsAlgoDataStructCertV8,
   isRelationalDatabaseCertV8: testUserData.isRelationalDatabaseCertV8,
   isRespWebDesignCert: testUserData.isRespWebDesignCert,
   isSciCompPyCertV7: testUserData.isSciCompPyCertV7,
@@ -240,6 +247,7 @@ const baseProgressData = {
   isRelationalDatabaseCertV8: false,
   isCollegeAlgebraPyCertV8: false,
   completedChallenges: [],
+  completedExams: [],
   savedChallenges: [],
   partiallyCompletedChallenges: [],
   needsModeration: false
@@ -269,14 +277,34 @@ const tokenData = [
   { created: new Date(), id: '789', ttl: 1000, userId: otherUserId }
 ];
 
+const mockSurveyResults = {
+  title: 'Foundational C# with Microsoft Survey',
+  responses: [
+    {
+      question: 'Please describe your role:',
+      response: 'Beginner developer (less than 2 years experience)'
+    },
+    {
+      question:
+        'Prior to this course, how experienced were you with .NET and C#?',
+      response: 'Novice (no prior experience)'
+    }
+  ]
+};
+
 describe('userRoutes', () => {
   setupServer();
 
   describe('Authenticated user', () => {
-    let setCookies: string[];
+    let superGet: ReturnType<typeof createSuperRequest>;
+    let superPost: ReturnType<typeof createSuperRequest>;
+    let superDelete: ReturnType<typeof createSuperRequest>;
 
     beforeEach(async () => {
-      setCookies = await devLogin();
+      const setCookies = await devLogin();
+      superGet = createSuperRequest({ method: 'GET', setCookies });
+      superPost = createSuperRequest({ method: 'POST', setCookies });
+      superDelete = createSuperRequest({ method: 'DELETE', setCookies });
     });
 
     describe('/account/delete', () => {
@@ -291,11 +319,7 @@ describe('userRoutes', () => {
 
       test('POST returns 200 status code with empty object', async () => {
         expect(await fastifyTestInstance.prisma.user.count()).toBe(1);
-        const response = await superRequest('/account/delete', {
-          method: 'POST',
-          setCookies
-        });
-
+        const response = await superPost('/account/delete');
         const userCount = await fastifyTestInstance.prisma.user.count({
           where: { email: testUserData.email }
         });
@@ -310,11 +334,7 @@ describe('userRoutes', () => {
           data: msUsernameData
         });
 
-        await superRequest('/account/delete', {
-          method: 'POST',
-          setCookies
-        });
-
+        await superPost('/account/delete');
         expect(await fastifyTestInstance.prisma.msUsername.count()).toBe(1);
       });
 
@@ -323,10 +343,8 @@ describe('userRoutes', () => {
           data: tokenData
         });
 
-        await superRequest('/account/delete', {
-          method: 'POST',
-          setCookies
-        });
+        await superPost('/account/delete');
+
         const userTokens =
           await fastifyTestInstance.prisma.userToken.findMany();
         expect(userTokens).toHaveLength(1);
@@ -349,10 +367,7 @@ describe('userRoutes', () => {
           data: modifiedProgressData
         });
 
-        const response = await superRequest('/account/reset-progress', {
-          method: 'POST',
-          setCookies
-        });
+        const response = await superPost('/account/reset-progress');
 
         const user = await fastifyTestInstance.prisma.user.findFirst({
           where: { email: testUserData.email }
@@ -370,10 +385,7 @@ describe('userRoutes', () => {
           data: msUsernameData
         });
 
-        await superRequest('/account/reset-progress', {
-          method: 'POST',
-          setCookies
-        });
+        await superPost('/account/reset-progress');
 
         expect(await fastifyTestInstance.prisma.msUsername.count()).toBe(1);
       });
@@ -383,10 +395,7 @@ describe('userRoutes', () => {
           data: tokenData
         });
 
-        await superRequest('/account/reset-progress', {
-          method: 'POST',
-          setCookies
-        });
+        await superPost('/account/reset-progress');
 
         const userTokens =
           await fastifyTestInstance.prisma.userToken.findMany();
@@ -417,10 +426,7 @@ describe('userRoutes', () => {
 
       // TODO(Post-MVP): consider using PUT and updating the logic to upsert
       test('POST success response includes a JWT encoded string', async () => {
-        const response = await superRequest('/user/user-token', {
-          method: 'POST',
-          setCookies
-        });
+        const response = await superPost('/user/user-token');
 
         const userToken = response.body.userToken;
         const decodedToken = jwt.decode(userToken);
@@ -439,10 +445,7 @@ describe('userRoutes', () => {
       });
 
       test('POST responds with an encoded UserToken id', async () => {
-        const response = await superRequest('/user/user-token', {
-          method: 'POST',
-          setCookies
-        });
+        const response = await superPost('/user/user-token');
 
         const decodedToken = jwt.decode(response.body.userToken);
         const userTokenId = (decodedToken as JwtPayload).userToken;
@@ -457,10 +460,7 @@ describe('userRoutes', () => {
       });
 
       test('POST deletes old tokens when creating a new one', async () => {
-        const response = await superRequest('/user/user-token', {
-          method: 'POST',
-          setCookies
-        });
+        const response = await superPost('/user/user-token');
 
         const decodedToken = jwt.decode(response.body.userToken);
         const userTokenId = (decodedToken as JwtPayload).userToken;
@@ -470,10 +470,7 @@ describe('userRoutes', () => {
           where: { id: userTokenId }
         });
 
-        await superRequest('/user/user-token', {
-          method: 'POST',
-          setCookies
-        });
+        await superPost('/user/user-token');
 
         // Verify that the old token has been deleted.
         expect(
@@ -485,10 +482,7 @@ describe('userRoutes', () => {
       });
 
       test('DELETE returns 200 status with null userToken', async () => {
-        const response = await superRequest('/user/user-token', {
-          method: 'DELETE',
-          setCookies
-        });
+        const response = await superDelete('/user/user-token');
 
         expect(response.body).toStrictEqual({ userToken: null });
         expect(response.status).toBe(200);
@@ -496,15 +490,9 @@ describe('userRoutes', () => {
       });
 
       test('DELETEing a missing userToken returns 404 status with an error message', async () => {
-        await superRequest('/user/user-token', {
-          method: 'DELETE',
-          setCookies
-        });
+        await superDelete('/user/user-token');
 
-        const response = await superRequest('/user/user-token', {
-          method: 'DELETE',
-          setCookies
-        });
+        const response = await superDelete('/user/user-token');
 
         expect(response.body).toStrictEqual({
           type: 'info',
@@ -514,7 +502,7 @@ describe('userRoutes', () => {
       });
     });
 
-    describe('user/get-user-session', () => {
+    describe('/user/get-user-session', () => {
       beforeEach(async () => {
         await fastifyTestInstance.prisma.user.updateMany({
           where: { email: testUserData.email },
@@ -534,20 +522,22 @@ describe('userRoutes', () => {
           data: { username: '' }
         });
 
-        const response = await superRequest('/user/get-session-user', {
-          method: 'GET',
-          setCookies
-        });
+        const response = await superGet('/user/get-session-user');
 
         expect(response.body).toStrictEqual({ user: {}, result: '' });
         expect(response.statusCode).toBe(500);
       });
 
+      // This should help debugging, since this the route returns this if
+      // anything throws in the handler.
+      test('GET does not return the error response if the request is valid', async () => {
+        const response = await superGet('/user/get-session-user');
+
+        expect(response.body).not.toEqual({ user: {}, result: '' });
+      });
+
       test('GET returns username as the result property', async () => {
-        const response = await superRequest('/user/get-session-user', {
-          method: 'GET',
-          setCookies
-        });
+        const response = await superGet('/user/get-session-user');
 
         expect(response.body).toMatchObject({
           result: testUserData.username
@@ -567,10 +557,7 @@ describe('userRoutes', () => {
           joinDate: new ObjectId(testUser?.id).getTimestamp().toISOString()
         };
 
-        const response = await superRequest('/user/get-session-user', {
-          method: 'GET',
-          setCookies
-        });
+        const response = await superGet('/user/get-session-user');
         const {
           user: { foobar }
         } = response.body as unknown as {
@@ -597,16 +584,28 @@ describe('userRoutes', () => {
         const tokens = await fastifyTestInstance.prisma.userToken.count();
         expect(tokens).toBe(1);
 
-        const response = await superRequest('/user/get-session-user', {
-          method: 'GET',
-          setCookies
-        });
+        const response = await superGet('/user/get-session-user');
 
         const { userToken } = jwt.decode(
           response.body.user.foobar.userToken
         ) as { userToken: string };
 
         expect(tokenData.id).toBe(userToken);
+      });
+
+      test('GET returns the msUsername if it exists', async () => {
+        await fastifyTestInstance.prisma.msUsername.create({
+          data: msUsernameData[0] as (typeof msUsernameData)[0]
+        });
+
+        const msUsernames = await fastifyTestInstance.prisma.msUsername.count();
+        expect(msUsernames).toBe(1);
+
+        const response = await superGet('/user/get-session-user');
+
+        const { msUsername } = response.body.user.foobar;
+
+        expect(msUsername).toBe(msUsernameData[0]?.msUsername);
       });
 
       test('GET returns a minimal user when all optional properties are missing', async () => {
@@ -624,8 +623,8 @@ describe('userRoutes', () => {
         });
 
         // devLogin must not be used here since it overrides the user
-        const res = await superRequest('/auth/dev-callback', { method: 'GET' });
-        setCookies = res.get('Set-Cookie');
+        const res = await superRequest('/signin', { method: 'GET' });
+        const setCookies = res.get('Set-Cookie');
 
         const publicUser = {
           ..._.omit(minimalUserData, ['externalId', 'unsubscribeId']),
@@ -634,13 +633,40 @@ describe('userRoutes', () => {
           joinDate: new ObjectId(testUser.id).getTimestamp().toISOString(),
           // the following properties are defaults provided if the field is
           // missing in the user document.
+          currentChallengeId: '',
           completedChallenges: [],
-          // TODO: add completedExams when /generate-exam is implemented
-          // completedExams: [],
+          completedExams: [],
+          completedSurveys: [],
           partiallyCompletedChallenges: [],
           portfolio: [],
           savedChallenges: [],
-          yearsTopContributor: []
+          yearsTopContributor: [],
+          is2018DataVisCert: false,
+          is2018FullStackCert: false,
+          isApisMicroservicesCert: false,
+          isBackEndCert: false,
+          isCheater: false,
+          isCollegeAlgebraPyCertV8: false,
+          isDataAnalysisPyCertV7: false,
+          isDataVisCert: false,
+          isFoundationalCSharpCertV8: false,
+          isFrontEndCert: false,
+          isFrontEndLibsCert: false,
+          isFullStackCert: false,
+          isHonest: false,
+          isInfosecCertV7: false,
+          isInfosecQaCert: false,
+          isJsAlgoDataStructCert: false,
+          isJsAlgoDataStructCertV8: false,
+          isMachineLearningPyCertV7: false,
+          isQaCertV7: false,
+          isRelationalDatabaseCertV8: false,
+          isRespWebDesignCert: false,
+          isSciCompPyCertV7: false,
+          keyboardShortcuts: false,
+          location: '',
+          name: '',
+          theme: 'default'
         };
 
         const response = await superRequest('/user/get-session-user', {
@@ -671,10 +697,7 @@ describe('userRoutes', () => {
       });
 
       test('POST returns 400 for empty username', async () => {
-        const response = await superRequest('/user/report-user', {
-          method: 'POST',
-          setCookies
-        }).send({
+        const response = await superPost('/user/report-user').send({
           username: '',
           reportDescription: 'Test Report'
         });
@@ -687,10 +710,7 @@ describe('userRoutes', () => {
       });
 
       test('POST returns 400 for empty report', async () => {
-        const response = await superRequest('/user/report-user', {
-          method: 'POST',
-          setCookies
-        }).send({
+        const response = await superPost('/user/report-user').send({
           username: 'darth-vader',
           reportDescription: ''
         });
@@ -703,17 +723,14 @@ describe('userRoutes', () => {
       });
 
       test('POST sanitises report description', async () => {
-        await superRequest('/user/report-user', {
-          method: 'POST',
-          setCookies
-        }).send({
+        await superPost('/user/report-user').send({
           username: 'darth-vader',
           reportDescription:
             '<script>const breath = "loud"</script>Luke, I am your father'
         });
 
-        expect(sendEmailSpy).toBeCalledTimes(1);
-        expect(sendEmailSpy).toBeCalledWith(
+        expect(sendEmailSpy).toHaveBeenCalledTimes(1);
+        expect(sendEmailSpy).toHaveBeenCalledWith(
           expect.objectContaining({
             text: expect.stringContaining(
               'Report Details:\n\nLuke, I am your father'
@@ -728,16 +745,13 @@ describe('userRoutes', () => {
             where: { email: testUserData.email }
           }
         );
-        const response = await superRequest('/user/report-user', {
-          method: 'POST',
-          setCookies
-        }).send({
+        const response = await superPost('/user/report-user').send({
           username: 'darth-vader',
           reportDescription: 'Luke, I am your father'
         });
 
-        expect(sendEmailSpy).toBeCalledTimes(1);
-        expect(sendEmailSpy).toBeCalledWith({
+        expect(sendEmailSpy).toHaveBeenCalledTimes(1);
+        expect(sendEmailSpy).toHaveBeenCalledWith({
           from: 'team@freecodecamp.org',
           to: 'support@freecodecamp.org',
           cc: 'foo@bar.com',
@@ -786,10 +800,7 @@ Thanks and regards,
             ]
           });
 
-          const response = await superRequest('/user/ms-username', {
-            method: 'DELETE',
-            setCookies
-          });
+          const response = await superDelete('/user/ms-username');
 
           const msUsernames =
             await fastifyTestInstance.prisma.msUsername.count();
@@ -807,10 +818,7 @@ Thanks and regards,
             ]
           });
 
-          await superRequest('/user/ms-username', {
-            method: 'DELETE',
-            setCookies
-          });
+          await superDelete('/user/ms-username');
 
           const msUsernames =
             await fastifyTestInstance.prisma.msUsername.count();
@@ -835,10 +843,7 @@ Thanks and regards,
         });
 
         it('handles missing transcript urls', async () => {
-          const response = await superRequest('/user/ms-username', {
-            method: 'POST',
-            setCookies
-          });
+          const response = await superPost('/user/ms-username');
 
           expect(response.body).toStrictEqual({
             type: 'error',
@@ -854,10 +859,7 @@ Thanks and regards,
             })
           );
 
-          const response = await superRequest('/user/ms-username', {
-            method: 'POST',
-            setCookies
-          }).send({
+          const response = await superPost('/user/ms-username').send({
             msTranscriptUrl: 'https://www.example.com'
           });
 
@@ -876,10 +878,7 @@ Thanks and regards,
             })
           );
 
-          const response = await superRequest('/user/ms-username', {
-            method: 'POST',
-            setCookies
-          }).send({
+          const response = await superPost('/user/ms-username').send({
             msTranscriptUrl: 'https://www.example.com'
           });
 
@@ -909,10 +908,7 @@ Thanks and regards,
             }
           });
 
-          const response = await superRequest('/user/ms-username', {
-            method: 'POST',
-            setCookies
-          }).send({
+          const response = await superPost('/user/ms-username').send({
             msTranscriptUrl: 'https://www.example.com'
           });
 
@@ -935,10 +931,7 @@ Thanks and regards,
                 })
             })
           );
-          const response = await superRequest('/user/ms-username', {
-            method: 'POST',
-            setCookies
-          }).send({
+          const response = await superPost('/user/ms-username').send({
             msTranscriptUrl: 'https://www.example.com'
           });
 
@@ -960,10 +953,7 @@ Thanks and regards,
             })
           );
 
-          await superRequest('/user/ms-username', {
-            method: 'POST',
-            setCookies
-          }).send({
+          await superPost('/user/ms-username').send({
             msTranscriptUrl: 'https://www.example.com'
           });
 
@@ -1011,16 +1001,10 @@ Thanks and regards,
             }
           });
 
-          await superRequest('/user/ms-username', {
-            method: 'POST',
-            setCookies
-          }).send({
+          await superPost('/user/ms-username').send({
             msTranscriptUrl: 'https://www.example.com'
           });
-          await superRequest('/user/ms-username', {
-            method: 'POST',
-            setCookies
-          }).send({
+          await superPost('/user/ms-username').send({
             msTranscriptUrl: 'https://www.example.com'
           });
 
@@ -1038,14 +1022,61 @@ Thanks and regards,
           const msTranscriptApiUrl =
             'https://learn.microsoft.com/api/profiles/transcript/share/8u6awert43q1plo';
 
-          await superRequest('/user/ms-username', {
-            method: 'POST',
-            setCookies
-          }).send({
+          await superPost('/user/ms-username').send({
             msTranscriptUrl
           });
 
           expect(mockedFetch).toHaveBeenCalledWith(msTranscriptApiUrl);
+        });
+      });
+    });
+
+    describe('/user/submit-survey', () => {
+      afterEach(async () => {
+        await fastifyTestInstance.prisma.survey.deleteMany({
+          where: { userId: defaultUserId }
+        });
+      });
+
+      test('POST returns 400 for invalid survey title', async () => {
+        const response = await superPost('/user/submit-survey').send({
+          surveyResults: { ...mockSurveyResults, title: 'Invalid Survey' }
+        });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.body).toStrictEqual({
+          type: 'error',
+          message: 'flash.survey.err-1'
+        });
+      });
+
+      test('POST returns 400 if user already submitted survey', async () => {
+        // Submit survey for first time
+        await superPost('/user/submit-survey').send({
+          surveyResults: mockSurveyResults
+        });
+
+        // Submit same survey again to get failed response
+        const response = await superPost('/user/submit-survey').send({
+          surveyResults: mockSurveyResults
+        });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.body).toStrictEqual({
+          type: 'error',
+          message: 'flash.survey.err-2'
+        });
+      });
+
+      test('POST returns 200 status code with "success" message', async () => {
+        const response = await superPost('/user/submit-survey').send({
+          surveyResults: mockSurveyResults
+        });
+
+        expect(response.statusCode).toBe(200);
+        expect(response.body).toStrictEqual({
+          type: 'success',
+          message: 'flash.survey.success'
         });
       });
     });
@@ -1067,7 +1098,8 @@ Thanks and regards,
       { path: '/user/user-token', method: 'POST' },
       { path: '/user/ms-username', method: 'DELETE' },
       { path: '/user/report-user', method: 'POST' },
-      { path: '/user/ms-username', method: 'POST' }
+      { path: '/user/ms-username', method: 'POST' },
+      { path: '/user/submit-survey', method: 'POST' }
     ];
 
     endpoints.forEach(({ path, method }) => {

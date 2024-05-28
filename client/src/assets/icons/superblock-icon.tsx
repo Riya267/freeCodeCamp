@@ -16,6 +16,8 @@ import VikingHelmet from './viking-helmet';
 import Graduation from './graduation';
 import CollegeAlgebra from './college-algebra';
 import CSharpLogo from './c-sharp-logo';
+import A2EnglishIcon from './a2-english';
+import RosettaCodeIcon from './rosetta-code';
 
 const iconMap = {
   [SuperBlocks.RespWebDesignNew]: ResponsiveDesign,
@@ -38,7 +40,9 @@ const iconMap = {
   [SuperBlocks.FoundationalCSharp]: CSharpLogo,
   [SuperBlocks.ExampleCertification]: ResponsiveDesign,
   [SuperBlocks.UpcomingPython]: PythonIcon,
-  [SuperBlocks.A2English]: Graduation
+  [SuperBlocks.A2English]: A2EnglishIcon,
+  [SuperBlocks.RosettaCode]: RosettaCodeIcon,
+  [SuperBlocks.PythonForEverybody]: PythonIcon
 };
 
 type SuperBlockIconProps = {

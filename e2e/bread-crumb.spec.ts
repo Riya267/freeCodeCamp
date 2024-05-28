@@ -1,53 +1,35 @@
 import { test, expect } from '@playwright/test';
 
-const breadcrumbNavs = {
-  leftBreadcrumb: '(New) Foundational C# with Microsoft',
-  rightBreadcrumb: 'Write Your First Code Using C#'
-};
-
 test.beforeEach(async ({ page }) => {
   await page.goto(
     '/learn/foundational-c-sharp-with-microsoft/write-your-first-code-using-c-sharp/trophy-write-your-first-code-using-c-sharp'
   );
 });
 
-test.afterEach(async ({ page }) => {
-  await page.close();
-});
-
 test.describe('Challenge Breadcrumb Component Tests', () => {
-  test('breadcrumb nav links should be visible', async ({ page }) => {
-    await expect(
-      page
-        .getByRole('listitem')
-        .filter({ hasText: breadcrumbNavs.leftBreadcrumb })
-    ).toBeVisible();
-    await expect(
-      page
-        .getByRole('listitem')
-        .filter({ hasText: breadcrumbNavs.rightBreadcrumb })
-    ).toBeVisible();
-  });
+  test('should display correctly', async ({ page }) => {
+    const superBlock = page.getByRole('listitem').first();
+    await expect(superBlock).toBeVisible();
 
-  test('left breadcrumb nav link should have correct URL', async ({ page }) => {
-    await page
-      .getByRole('listitem')
-      .filter({ hasText: breadcrumbNavs.leftBreadcrumb })
-      .click();
-    await expect(page).toHaveURL(
-      'http://localhost:8000/learn/foundational-c-sharp-with-microsoft'
+    const superBlockLink = superBlock.getByRole('link', {
+      name: '(New) Foundational C# with Microsoft'
+    });
+    await expect(superBlockLink).toBeVisible();
+    await expect(superBlockLink).toHaveAttribute(
+      'href',
+      '/learn/foundational-c-sharp-with-microsoft'
     );
-  });
 
-  test('right breadcrumb nav link should have correct URL', async ({
-    page
-  }) => {
-    await page
-      .getByRole('listitem')
-      .filter({ hasText: breadcrumbNavs.rightBreadcrumb })
-      .click();
-    await expect(page).toHaveURL(
-      'http://localhost:8000/learn/foundational-c-sharp-with-microsoft/#write-your-first-code-using-c-sharp'
+    const block = page.getByRole('listitem').last();
+    await expect(superBlock).toBeVisible();
+
+    const blockLink = block.getByRole('link', {
+      name: 'Write Your First Code Using C#'
+    });
+    await expect(blockLink).toBeVisible();
+    await expect(blockLink).toHaveAttribute(
+      'href',
+      '/learn/foundational-c-sharp-with-microsoft/#write-your-first-code-using-c-sharp'
     );
   });
 });
